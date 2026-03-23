@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  linkedInAccounts LinkedInAccount[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// LinkedIn account connected by a user
+model LinkedInAccount {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedinId      String   @unique
+  name            String
+  profileUrl      String?
+  avatarUrl       String?
+  accessToken     String   @db.Text
+  refreshToken    String?  @db.Text
+  tokenExpiresAt  DateTime
+  posts           Post[]
+  analytics       Analytics[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Post {
+  id                String          @id @default(cuid())
+  linkedInAccountId String
+  linkedInAccount   LinkedInAccount @relation(fields: [linkedInAccountId], references: [id], onDelete: Cascade)
+  content           String          @db.Text
+  mediaUrls         String[]
+  status            PostStatus      @default(DRAFT)
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  linkedinPostId    String?         // ID returned by LinkedIn after publishing
+  analytics         Analytics?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([linkedInAccountId])
+  @@index([status, scheduledAt])
+}
+
+model Analytics {
+  id                String          @id @default(cuid())
+  linkedInAccountId String
+  linkedInAccount   LinkedInAccount @relation(fields: [linkedInAccountId], references: [id], onDelete: Cascade)
+  postId            String?         @unique
+  post              Post?           @relation(fields: [postId], references: [id], onDelete: SetNull)
+  impressions       Int             @default(0)
+  likes             Int             @default(0)
+  comments          Int             @default(0)
+  shares            Int             @default(0)
+  clicks            Int             @default(0)
+  followers         Int             @default(0)
+  recordedAt        DateTime        @default(now())
+
+  @@index([linkedInAccountId])
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
