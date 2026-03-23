@@ -49,8 +49,7 @@ export default function SchedulePage() {
       .then((r) => r.json())
       .then((data) => {
         const all = Array.isArray(data) ? data : [];
-        // Show drafts, scheduled, publishing, and failed posts
-        setPosts(all.filter((p: Post) => p.status !== "PUBLISHED"));
+        setPosts(all);
         setLoading(false);
       });
   }, [selectedAccount]);
@@ -72,7 +71,7 @@ export default function SchedulePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Scheduled & Draft Posts</h1>
+        <h1 className="text-3xl font-bold">All Posts</h1>
         <button
           onClick={() => router.push("/dashboard/compose")}
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
@@ -121,9 +120,14 @@ export default function SchedulePage() {
                       <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-3">
                         {post.content}
                       </p>
-                      {post.scheduledAt && (
+                      {post.scheduledAt && post.status === "SCHEDULED" && (
                         <p className="mt-2 text-xs text-gray-500">
                           Scheduled for {format(new Date(post.scheduledAt), "MMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      )}
+                      {post.publishedAt && post.status === "PUBLISHED" && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          Published {format(new Date(post.publishedAt), "MMM d, yyyy 'at' h:mm a")}
                         </p>
                       )}
                     </div>
