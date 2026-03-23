@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ExternalLink, Trash2, Link2, Loader2 } from "lucide-react";
 import type { AccountWithDetails } from "@/types";
@@ -19,11 +19,13 @@ function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [connectStatus, setConnectStatus] = useState<"idle" | "success" | "error">("idle");
+  const [connectError, setConnectError] = useState("");
 
   const success = searchParams.get("success");
   const error = searchParams.get("error");
 
-  useEffect(() => {
+  const fetchAccounts = useCallback(() => {
     fetch("/api/accounts")
       .then((r) => r.json())
       .then((data) => {
@@ -31,6 +33,39 @@ function AccountsPage() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  // Listen for popup callback
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "linkedin-connected") {
+        setConnectStatus("success");
+        fetchAccounts();
+      } else if (event.data?.type === "linkedin-error") {
+        setConnectStatus("error");
+        setConnectError(event.data.error ?? "Failed to connect");
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [fetchAccounts]);
+
+  function handleConnect() {
+    setConnectStatus("idle");
+    setConnectError("");
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    window.open(
+      "/api/auth/linkedin/connect",
+      "linkedin-connect",
+      `width=${width},height=${height},left=${left},top=${top},popup=yes`
+    );
+  }
 
   async function handleDisconnect(id: string) {
     if (!confirm("Disconnect this LinkedIn account? All associated posts will be deleted.")) return;
@@ -45,27 +80,31 @@ function AccountsPage() {
     }
   }
 
+  const showSuccess = connectStatus === "success" || success === "connected";
+  const showError = connectStatus === "error" || !!error;
+  const errorMessage = connectError || (error ? decodeURIComponent(error) : "");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">LinkedIn Accounts</h1>
-        <a
-          href="/api/auth/linkedin/connect"
+        <button
+          onClick={handleConnect}
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
         >
           <Link2 className="h-4 w-4" />
           Connect Account
-        </a>
+        </button>
       </div>
 
-      {success === "connected" && (
+      {showSuccess && (
         <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-700">
           LinkedIn account connected successfully!
         </div>
       )}
-      {error && (
+      {showError && (
         <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-          Failed to connect: {decodeURIComponent(error)}
+          Failed to connect: {errorMessage}
         </div>
       )}
 
@@ -78,13 +117,13 @@ function AccountsPage() {
           <p className="mt-1 text-sm text-gray-500">
             Connect your LinkedIn accounts to start managing posts and analytics.
           </p>
-          <a
-            href="/api/auth/linkedin/connect"
+          <button
+            onClick={handleConnect}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
           >
             <Link2 className="h-4 w-4" />
             Connect Your First Account
-          </a>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

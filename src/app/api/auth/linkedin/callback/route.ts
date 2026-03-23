@@ -3,38 +3,34 @@ import { cookies } from "next/headers";
 import { LinkedInClient } from "@/lib/linkedin";
 import { db } from "@/lib/db";
 
-function getBaseUrl() {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
+function popupResponse(type: "linkedin-connected" | "linkedin-error", error?: string) {
+  const message = JSON.stringify({ type, error });
+  const html = `<!DOCTYPE html><html><body><script>
+    window.opener?.postMessage(${message}, "*");
+    window.close();
+  </script><p>You can close this window.</p></body></html>`;
+  return new NextResponse(html, {
+    headers: { "Content-Type": "text/html" },
+  });
 }
 
 export async function GET(req: NextRequest) {
-  const baseUrl = getBaseUrl();
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
   const storedState = cookies().get("linkedin_oauth_state")?.value;
 
-  // LinkedIn returned an error
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/dashboard/accounts?error=linkedin_${error}`, baseUrl)
-    );
+    return popupResponse("linkedin-error", `linkedin_${error}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/dashboard/accounts?error=no_code", baseUrl)
-    );
+    return popupResponse("linkedin-error", "no_code");
   }
 
-  // State validation — skip if cookie was lost (common with some browsers)
   if (storedState && state !== storedState) {
-    return NextResponse.redirect(
-      new URL("/dashboard/accounts?error=invalid_state", baseUrl)
-    );
+    return popupResponse("linkedin-error", "invalid_state");
   }
 
   try {
@@ -45,7 +41,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const tokenData = await LinkedInClient.exchangeCodeForToken(code);
-
     const client = new LinkedInClient(tokenData.access_token);
     const userInfo = await client.getUserInfo();
 
@@ -71,14 +66,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(
-      new URL("/dashboard/accounts?success=connected", baseUrl)
-    );
+    return popupResponse("linkedin-connected");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("LinkedIn OAuth error:", message, err);
-    return NextResponse.redirect(
-      new URL(`/dashboard/accounts?error=${encodeURIComponent(message)}`, baseUrl)
-    );
+    return popupResponse("linkedin-error", message);
   }
 }

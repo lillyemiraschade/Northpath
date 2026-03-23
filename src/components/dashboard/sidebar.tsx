@@ -31,10 +31,25 @@ export default function Sidebar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  function fetchAccounts() {
     fetch("/api/accounts")
       .then((r) => r.json())
       .then((data) => setAccounts(Array.isArray(data) ? data : []));
+  }
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  // Refetch when a new account is connected via popup
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "linkedin-connected") {
+        fetchAccounts();
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
   useEffect(() => {
@@ -113,13 +128,19 @@ export default function Sidebar() {
               <p className="px-3 py-2 text-xs text-gray-400">No accounts connected</p>
             )}
             <div className="border-t mt-1 pt-1">
-              <a
-                href="/api/auth/linkedin/connect"
+              <button
+                onClick={() => {
+                  setDropdownOpen(false);
+                  const w = 600, h = 700;
+                  const left = window.screenX + (window.outerWidth - w) / 2;
+                  const top = window.screenY + (window.outerHeight - h) / 2;
+                  window.open("/api/auth/linkedin/connect", "linkedin-connect", `width=${w},height=${h},left=${left},top=${top},popup=yes`);
+                }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
               >
                 <Plus className="h-4 w-4" />
                 Add Account
-              </a>
+              </button>
             </div>
           </div>
         )}
