@@ -1,5 +1,3 @@
-const LINKEDIN_API_BASE = "https://api.linkedin.com/v2";
-
 interface LinkedInTokenResponse {
   access_token: string;
   expires_in: number;
@@ -78,55 +76,63 @@ export class LinkedInClient {
   ): Promise<string> {
     const body: Record<string, unknown> = {
       author: `urn:li:person:${authorId}`,
+      commentary: text,
+      visibility: "PUBLIC",
+      distribution: {
+        feedDistribution: "MAIN_FEED",
+      },
       lifecycleState: "PUBLISHED",
-      specificContent: {
-        "com.linkedin.ugc.ShareContent": {
-          shareCommentary: { text },
-          shareMediaCategory: mediaUrls?.length ? "IMAGE" : "NONE",
-          ...(mediaUrls?.length && {
-            media: mediaUrls.map((url) => ({
-              status: "READY",
-              originalUrl: url,
-            })),
-          }),
-        },
-      },
-      visibility: {
-        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-      },
     };
 
-    const response = await fetch(`${LINKEDIN_API_BASE}/ugcPosts`, {
+    if (mediaUrls?.length) {
+      body.content = {
+        multiImage: {
+          images: mediaUrls.map((url) => ({
+            altText: "",
+            id: url,
+          })),
+        },
+      };
+    }
+
+    const response = await fetch("https://api.linkedin.com/rest/posts", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
         "Content-Type": "application/json",
+        "LinkedIn-Version": "202401",
+        "X-Restli-Protocol-Version": "2.0.0",
       },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create LinkedIn post: ${response.statusText}`);
+      const errorBody = await response.text();
+      throw new Error(`Failed to create LinkedIn post: ${response.status} ${errorBody}`);
     }
 
-    const data = await response.json();
-    return data.id;
+    // The post ID is returned in the x-restli-id header
+    const postId = response.headers.get("x-restli-id") ?? "";
+    return postId;
   }
 
-  async deletePost(ugcPostId: string): Promise<void> {
-    const encodedId = encodeURIComponent(ugcPostId);
+  async deletePost(postId: string): Promise<void> {
+    const encodedId = encodeURIComponent(postId);
     const response = await fetch(
-      `${LINKEDIN_API_BASE}/ugcPosts/${encodedId}`,
+      `https://api.linkedin.com/rest/posts/${encodedId}`,
       {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
+          "LinkedIn-Version": "202401",
+          "X-Restli-Protocol-Version": "2.0.0",
         },
       }
     );
 
     if (!response.ok && response.status !== 404) {
-      throw new Error(`Failed to delete LinkedIn post: ${response.statusText}`);
+      const errorBody = await response.text();
+      throw new Error(`Failed to delete LinkedIn post: ${response.status} ${errorBody}`);
     }
   }
 }
