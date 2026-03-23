@@ -112,4 +112,21 @@ export class LinkedInClient {
     const data = await response.json();
     return data.id;
   }
+
+  async deletePost(ugcPostId: string): Promise<void> {
+    const encodedId = encodeURIComponent(ugcPostId);
+    const response = await fetch(
+      `${LINKEDIN_API_BASE}/ugcPosts/${encodedId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`Failed to delete LinkedIn post: ${response.statusText}`);
+    }
+  }
 }

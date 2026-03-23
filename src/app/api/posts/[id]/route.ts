@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { LinkedInClient } from "@/lib/linkedin";
 import { z } from "zod";
 
 const updatePostSchema = z.object({
@@ -62,11 +63,25 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const post = await db.post.findUnique({ where: { id: params.id } });
+  const post = await db.post.findUnique({
+    where: { id: params.id },
+    include: { linkedInAccount: true },
+  });
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (post.status === "PUBLISHING") {
     return NextResponse.json({ error: "Cannot delete while publishing" }, { status: 400 });
+  }
+
+  // Delete from LinkedIn if the post was published
+  if (post.linkedinPostId && post.linkedInAccount) {
+    try {
+      const client = new LinkedInClient(post.linkedInAccount.accessToken);
+      await client.deletePost(post.linkedinPostId);
+    } catch (err) {
+      console.error("Failed to delete from LinkedIn:", err);
+      // Continue with local deletion even if LinkedIn delete fails
+    }
   }
 
   await db.post.delete({ where: { id: params.id } });
