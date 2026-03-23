@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { LinkedInClient } from "@/lib/linkedin";
+import { getLinkedInClient } from "@/lib/linkedin-auth";
 
 export async function POST(
   _req: NextRequest,
@@ -23,7 +23,7 @@ export async function POST(
   });
 
   try {
-    const client = new LinkedInClient(post.linkedInAccount.accessToken);
+    const client = await getLinkedInClient(post.linkedInAccount.id);
     const linkedinPostId = await client.createPost(
       post.linkedInAccount.linkedinId,
       post.content,

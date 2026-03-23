@@ -32,6 +32,33 @@ export class LinkedInClient {
     return `https://www.linkedin.com/oauth/v2/authorization?${params}`;
   }
 
+  static async refreshToken(
+    refreshToken: string
+  ): Promise<LinkedInTokenResponse> {
+    const response = await fetch(
+      "https://www.linkedin.com/oauth/v2/accessToken",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+          client_id: process.env.LINKEDIN_CLIENT_ID!,
+          client_secret: process.env.LINKEDIN_CLIENT_SECRET!,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `LinkedIn token refresh failed: ${response.status} ${errorBody}`
+      );
+    }
+
+    return response.json();
+  }
+
   static async exchangeCodeForToken(
     code: string
   ): Promise<LinkedInTokenResponse> {

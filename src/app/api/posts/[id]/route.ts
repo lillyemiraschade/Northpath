@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { LinkedInClient } from "@/lib/linkedin";
+import { getLinkedInClient } from "@/lib/linkedin-auth";
 import { z } from "zod";
 
 const updatePostSchema = z.object({
@@ -76,7 +76,7 @@ export async function DELETE(
   // Delete from LinkedIn if the post was published
   if (post.linkedinPostId && post.linkedInAccount) {
     try {
-      const client = new LinkedInClient(post.linkedInAccount.accessToken);
+      const client = await getLinkedInClient(post.linkedInAccount.id);
       await client.deletePost(post.linkedinPostId);
     } catch (err) {
       console.error("Failed to delete from LinkedIn:", err);
