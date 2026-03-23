@@ -1,15 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AccountSwitcher from "@/components/dashboard/account-switcher";
 import { format } from "date-fns";
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-  postCount: number;
-}
+import { useSelectedAccount } from "@/hooks/use-selected-account";
 
 interface Post {
   id: string;
@@ -21,61 +14,44 @@ interface Post {
 }
 
 interface Stats {
-  accounts: number;
   scheduled: number;
   published: number;
   impressions: number;
 }
 
 export default function DashboardPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  const [stats, setStats] = useState<Stats>({ accounts: 0, scheduled: 0, published: 0, impressions: 0 });
+  const selectedAccount = useSelectedAccount();
+  const [stats, setStats] = useState<Stats>({ scheduled: 0, published: 0, impressions: 0 });
   const [upcoming, setUpcoming] = useState<Post[]>([]);
   const [recent, setRecent] = useState<Post[]>([]);
-
-  useEffect(() => {
-    fetch("/api/accounts").then((r) => r.json()).then(setAccounts);
-  }, []);
 
   useEffect(() => {
     const qs = selectedAccount ? `?accountId=${selectedAccount}` : "";
 
     Promise.all([
-      fetch(`/api/posts${qs}&status=SCHEDULED`.replace("&", qs ? "&" : "?status=SCHEDULED".replace("?status", "?status"))).then((r) => r.json()),
       fetch(`/api/posts${qs}`).then((r) => r.json()),
       fetch(`/api/analytics${qs}`).then((r) => r.json()),
-    ]).then(([scheduled, allPosts, analyticsData]) => {
-      const scheduledPosts = Array.isArray(scheduled) ? scheduled : [];
+    ]).then(([allPosts, analyticsData]) => {
       const all = Array.isArray(allPosts) ? allPosts : [];
-      const publishedPosts = all.filter((p: Post) => p.status === "PUBLISHED");
+      const scheduled = all.filter((p: Post) => p.status === "SCHEDULED");
+      const published = all.filter((p: Post) => p.status === "PUBLISHED");
 
       setStats({
-        accounts: selectedAccount ? 1 : accounts.length,
-        scheduled: scheduledPosts.length,
-        published: publishedPosts.length,
+        scheduled: scheduled.length,
+        published: published.length,
         impressions: analyticsData?.summary?.totalImpressions ?? 0,
       });
 
-      setUpcoming(scheduledPosts.slice(0, 5));
-      setRecent(publishedPosts.slice(0, 5));
+      setUpcoming(scheduled.slice(0, 5));
+      setRecent(published.slice(0, 5));
     });
-  }, [selectedAccount, accounts.length]);
+  }, [selectedAccount]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-      </div>
+      <h1 className="text-3xl font-bold">Dashboard</h1>
 
-      <AccountSwitcher
-        accounts={accounts}
-        selectedId={selectedAccount}
-        onSelect={setSelectedAccount}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Connected Accounts" value={String(stats.accounts)} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard label="Scheduled Posts" value={String(stats.scheduled)} />
         <StatCard label="Published Posts" value={String(stats.published)} />
         <StatCard label="Total Impressions" value={stats.impressions.toLocaleString()} />

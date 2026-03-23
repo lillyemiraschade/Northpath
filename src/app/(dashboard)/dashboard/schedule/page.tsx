@@ -4,14 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Clock, Trash2, RefreshCw, PenSquare } from "lucide-react";
-import AccountSwitcher from "@/components/dashboard/account-switcher";
+import { useSelectedAccount } from "@/hooks/use-selected-account";
 import { cn } from "@/lib/utils";
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-}
 
 interface Post {
   id: string;
@@ -32,14 +26,9 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 
 export default function SchedulePage() {
   const router = useRouter();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const selectedAccount = useSelectedAccount();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/accounts").then((r) => r.json()).then((data) => setAccounts(Array.isArray(data) ? data : []));
-  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -48,8 +37,7 @@ export default function SchedulePage() {
     fetch(`/api/posts?${params}`)
       .then((r) => r.json())
       .then((data) => {
-        const all = Array.isArray(data) ? data : [];
-        setPosts(all);
+        setPosts(Array.isArray(data) ? data : []);
         setLoading(false);
       });
   }, [selectedAccount]);
@@ -81,20 +69,14 @@ export default function SchedulePage() {
         </button>
       </div>
 
-      <AccountSwitcher
-        accounts={accounts}
-        selectedId={selectedAccount}
-        onSelect={setSelectedAccount}
-      />
-
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading posts...</div>
       ) : posts.length === 0 ? (
         <div className="rounded-lg border bg-white p-12 text-center">
           <Clock className="mx-auto h-12 w-12 text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No posts here</h3>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">No posts yet</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Create and schedule posts from the Compose page.
+            Create your first post from the Compose page.
           </p>
         </div>
       ) : (

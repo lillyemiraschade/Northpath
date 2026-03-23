@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Send, Clock, Save, CheckCircle, AlertCircle } from "lucide-react";
+import { useSelectedAccount } from "@/hooks/use-selected-account";
 
 interface Account {
   id: string;
@@ -12,21 +12,10 @@ interface Account {
 
 type Status = "idle" | "saving" | "success" | "error";
 
-export default function ComposePageWrapper() {
-  return (
-    <Suspense fallback={<div className="text-center py-12 text-gray-500">Loading...</div>}>
-      <ComposePage />
-    </Suspense>
-  );
-}
-
-function ComposePage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const preselectedAccount = searchParams.get("account");
-
+export default function ComposePage() {
+  const globalAccount = useSelectedAccount();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState(preselectedAccount ?? "");
+  const [selectedAccount, setSelectedAccount] = useState(globalAccount ?? "");
   const [content, setContent] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [showSchedule, setShowSchedule] = useState(false);
@@ -45,6 +34,11 @@ function ComposePage() {
         }
       });
   }, []);
+
+  // Sync with global account switcher
+  useEffect(() => {
+    if (globalAccount) setSelectedAccount(globalAccount);
+  }, [globalAccount]);
 
   async function handleAction(action: "publish" | "schedule" | "draft") {
     if (!selectedAccount) {
@@ -103,7 +97,6 @@ function ComposePage() {
           : "Draft saved!"
       );
 
-      // Reset form after short delay
       setTimeout(() => {
         setContent("");
         setMediaUrl("");

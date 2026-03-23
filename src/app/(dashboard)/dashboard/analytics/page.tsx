@@ -1,15 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import AccountSwitcher from "@/components/dashboard/account-switcher";
+import { useEffect, useState } from "react";
+import { useSelectedAccount } from "@/hooks/use-selected-account";
 import AnalyticsCharts from "@/components/dashboard/analytics-charts";
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-}
 
 interface Summary {
   totalImpressions: number;
@@ -31,27 +24,11 @@ interface AnalyticsRecord {
   post: { id: string; content: string; publishedAt: string } | null;
 }
 
-export default function AnalyticsPageWrapper() {
-  return (
-    <Suspense fallback={<div className="text-center py-12 text-gray-500">Loading...</div>}>
-      <AnalyticsPage />
-    </Suspense>
-  );
-}
-
-function AnalyticsPage() {
-  const searchParams = useSearchParams();
-  const preselectedAccount = searchParams.get("account");
-
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(preselectedAccount);
+export default function AnalyticsPage() {
+  const selectedAccount = useSelectedAccount();
   const [summary, setSummary] = useState<Summary>({ totalImpressions: 0, totalLikes: 0, totalComments: 0, totalShares: 0, totalClicks: 0 });
   const [records, setRecords] = useState<AnalyticsRecord[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/accounts").then((r) => r.json()).then((data) => setAccounts(Array.isArray(data) ? data : []));
-  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -71,12 +48,6 @@ function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Analytics</h1>
-
-      <AccountSwitcher
-        accounts={accounts}
-        selectedId={selectedAccount}
-        onSelect={setSelectedAccount}
-      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Total Impressions" value={summary.totalImpressions.toLocaleString()} />
