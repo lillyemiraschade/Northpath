@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -15,23 +13,14 @@ const createPostSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get("accountId");
   const status = searchParams.get("status");
   const month = searchParams.get("month"); // YYYY-MM
 
-  const where: Record<string, unknown> = {
-    linkedInAccount: {
-      userId: session.user.id,
-      ...(accountId && { id: accountId }),
-    },
-  };
+  const where: Record<string, unknown> = {};
 
+  if (accountId) where.linkedInAccountId = accountId;
   if (status) where.status = status;
 
   if (month) {
@@ -57,11 +46,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const body = await req.json();
   const parsed = createPostSchema.safeParse(body);
 
@@ -71,9 +55,8 @@ export async function POST(req: NextRequest) {
 
   const { linkedInAccountId, content, mediaUrls, scheduledAt, status } = parsed.data;
 
-  // Verify account belongs to user
-  const account = await db.linkedInAccount.findFirst({
-    where: { id: linkedInAccountId, userId: session.user.id },
+  const account = await db.linkedInAccount.findUnique({
+    where: { id: linkedInAccountId },
   });
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });

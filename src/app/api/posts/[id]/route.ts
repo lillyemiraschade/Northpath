@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -11,25 +9,16 @@ const updatePostSchema = z.object({
   status: z.enum(["DRAFT", "SCHEDULED"]).optional(),
 });
 
-async function getOwnedPost(postId: string, userId: string) {
-  return db.post.findFirst({
-    where: { id: postId, linkedInAccount: { userId } },
-    include: { linkedInAccount: true },
-  });
-}
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const post = await db.post.findUnique({
+    where: { id: params.id },
+    include: { linkedInAccount: true },
+  });
 
-  const post = await getOwnedPost(params.id, session.user.id);
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
   return NextResponse.json(post);
 }
 
@@ -37,12 +26,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const post = await getOwnedPost(params.id, session.user.id);
+  const post = await db.post.findUnique({ where: { id: params.id } });
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (post.status === "PUBLISHED" || post.status === "PUBLISHING") {
@@ -78,12 +62,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const post = await getOwnedPost(params.id, session.user.id);
+  const post = await db.post.findUnique({ where: { id: params.id } });
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (post.status === "PUBLISHING") {
@@ -91,6 +70,5 @@ export async function DELETE(
   }
 
   await db.post.delete({ where: { id: params.id } });
-
   return new NextResponse(null, { status: 204 });
 }
