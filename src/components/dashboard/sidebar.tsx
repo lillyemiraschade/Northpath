@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Users,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
@@ -116,6 +117,15 @@ export default function Sidebar() {
             {accounts.length === 0 && (
               <p className="px-3 py-2 text-xs text-gray-400">No accounts connected</p>
             )}
+            <div className="border-t mt-1 pt-1">
+              <a
+                href="/api/auth/linkedin/connect"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Add Account
+              </a>
+            </div>
           </div>
         )}
       </div>
