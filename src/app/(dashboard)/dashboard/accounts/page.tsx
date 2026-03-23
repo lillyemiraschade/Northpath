@@ -68,7 +68,7 @@ function AccountsPage() {
       )}
       {error && (
         <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-          {error === "invalid_state" ? "OAuth state mismatch. Please try again." : "Failed to connect account. Please try again."}
+          Failed to connect: {decodeURIComponent(error)}
         </div>
       )}
 

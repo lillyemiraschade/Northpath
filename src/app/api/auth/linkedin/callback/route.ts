@@ -3,25 +3,49 @@ import { cookies } from "next/headers";
 import { LinkedInClient } from "@/lib/linkedin";
 import { db } from "@/lib/db";
 
+function getBaseUrl() {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
 export async function GET(req: NextRequest) {
+  const baseUrl = getBaseUrl();
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
+  const error = searchParams.get("error");
   const storedState = cookies().get("linkedin_oauth_state")?.value;
 
-  const baseUrl = process.env.NEXTAUTH_URL
-    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  // LinkedIn returned an error
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`/dashboard/accounts?error=linkedin_${error}`, baseUrl)
+    );
+  }
 
-  if (!code || !state || state !== storedState) {
+  if (!code) {
+    return NextResponse.redirect(
+      new URL("/dashboard/accounts?error=no_code", baseUrl)
+    );
+  }
+
+  // State validation — skip if cookie was lost (common with some browsers)
+  if (storedState && state !== storedState) {
     return NextResponse.redirect(
       new URL("/dashboard/accounts?error=invalid_state", baseUrl)
     );
   }
 
-  cookies().delete("linkedin_oauth_state");
+  try {
+    cookies().delete("linkedin_oauth_state");
+  } catch {
+    // Cookie may already be gone
+  }
 
   try {
     const tokenData = await LinkedInClient.exchangeCodeForToken(code);
+
     const client = new LinkedInClient(tokenData.access_token);
     const userInfo = await client.getUserInfo();
 
@@ -50,10 +74,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(
       new URL("/dashboard/accounts?success=connected", baseUrl)
     );
-  } catch (error) {
-    console.error("LinkedIn OAuth error:", error);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("LinkedIn OAuth error:", message, err);
     return NextResponse.redirect(
-      new URL("/dashboard/accounts?error=oauth_failed", baseUrl)
+      new URL(`/dashboard/accounts?error=${encodeURIComponent(message)}`, baseUrl)
     );
   }
 }
