@@ -13,10 +13,10 @@ export default function Home() {
         </p>
         <div className="flex gap-4 justify-center">
           <Link
-            href="/dashboard"
+            href="/signup"
             className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
           >
-            Go to Dashboard
+            Get Started
           </Link>
           <Link
             href="/login"
