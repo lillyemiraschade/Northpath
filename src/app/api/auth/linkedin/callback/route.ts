@@ -9,9 +9,8 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state");
   const storedState = cookies().get("linkedin_oauth_state")?.value;
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
+  const baseUrl = process.env.NEXTAUTH_URL
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
   if (!code || !state || state !== storedState) {
     return NextResponse.redirect(
@@ -24,26 +23,24 @@ export async function GET(req: NextRequest) {
   try {
     const tokenData = await LinkedInClient.exchangeCodeForToken(code);
     const client = new LinkedInClient(tokenData.access_token);
-    const profile = await client.getProfile();
+    const userInfo = await client.getUserInfo();
 
-    const name = `${profile.localizedFirstName} ${profile.localizedLastName}`;
     const tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
     await db.linkedInAccount.upsert({
-      where: { linkedinId: profile.id },
+      where: { linkedinId: userInfo.sub },
       create: {
-        linkedinId: profile.id,
-        name,
-        profileUrl: profile.vanityName
-          ? `https://linkedin.com/in/${profile.vanityName}`
-          : null,
-        avatarUrl: profile.profilePicture?.displayImage ?? null,
+        linkedinId: userInfo.sub,
+        name: userInfo.name,
+        profileUrl: null,
+        avatarUrl: userInfo.picture ?? null,
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token ?? null,
         tokenExpiresAt,
       },
       update: {
-        name,
+        name: userInfo.name,
+        avatarUrl: userInfo.picture ?? null,
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token ?? null,
         tokenExpiresAt,

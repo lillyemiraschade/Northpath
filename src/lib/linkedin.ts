@@ -7,14 +7,13 @@ interface LinkedInTokenResponse {
   scope: string;
 }
 
-interface LinkedInProfile {
-  id: string;
-  localizedFirstName: string;
-  localizedLastName: string;
-  profilePicture?: {
-    displayImage: string;
-  };
-  vanityName?: string;
+interface LinkedInUserInfo {
+  sub: string;
+  name: string;
+  given_name: string;
+  family_name: string;
+  picture?: string;
+  email?: string;
 }
 
 export class LinkedInClient {
@@ -30,7 +29,7 @@ export class LinkedInClient {
       client_id: process.env.LINKEDIN_CLIENT_ID!,
       redirect_uri: process.env.LINKEDIN_REDIRECT_URI!,
       state,
-      scope: "openid profile email w_member_social r_basicprofile",
+      scope: "openid profile email w_member_social",
     });
     return `https://www.linkedin.com/oauth/v2/authorization?${params}`;
   }
@@ -60,13 +59,13 @@ export class LinkedInClient {
     return response.json();
   }
 
-  async getProfile(): Promise<LinkedInProfile> {
-    const response = await fetch(`${LINKEDIN_API_BASE}/me`, {
+  async getUserInfo(): Promise<LinkedInUserInfo> {
+    const response = await fetch("https://api.linkedin.com/v2/userinfo", {
       headers: { Authorization: `Bearer ${this.accessToken}` },
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch LinkedIn profile: ${response.statusText}`);
+      throw new Error(`Failed to fetch LinkedIn userinfo: ${response.statusText}`);
     }
 
     return response.json();
