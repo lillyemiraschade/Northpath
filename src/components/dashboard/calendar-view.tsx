@@ -16,16 +16,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Post {
-  id: string;
-  content: string;
-  status: string;
-  scheduledAt: string | null;
-  publishedAt: string | null;
-  createdAt: string;
-  linkedInAccount: { id: string; name: string; avatarUrl: string | null };
-}
+import type { Post } from "@/types";
 
 interface Props {
   selectedAccountId: string | null;
@@ -182,7 +173,7 @@ export default function CalendarView({ selectedAccountId }: Props) {
                         {post.status}
                       </span>
                     </div>
-                    <p className="text-gray-600 line-clamp-2">{post.content}</p>
+                    <p className="text-gray-600 line-clamp-3 whitespace-pre-wrap">{post.content}</p>
                   </div>
                 </li>
               ))}

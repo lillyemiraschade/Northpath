@@ -1,5 +1,27 @@
 import type { PostStatus } from "@prisma/client";
 
+export interface Account {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export interface AccountWithDetails extends Account {
+  profileUrl: string | null;
+  postCount: number;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  content: string;
+  status: string;
+  scheduledAt: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  linkedInAccount: { id: string; name: string; avatarUrl: string | null };
+}
+
 export interface LinkedInAccountSummary {
   id: string;
   name: string;

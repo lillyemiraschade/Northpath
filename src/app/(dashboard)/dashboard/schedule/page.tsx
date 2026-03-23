@@ -3,18 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Clock, Trash2, RefreshCw, PenSquare } from "lucide-react";
+import { Clock, Trash2, RefreshCw, PenSquare, Loader2 } from "lucide-react";
 import { useSelectedAccount } from "@/hooks/use-selected-account";
 import { cn } from "@/lib/utils";
-
-interface Post {
-  id: string;
-  content: string;
-  status: string;
-  scheduledAt: string | null;
-  publishedAt: string | null;
-  linkedInAccount: { id: string; name: string; avatarUrl: string | null };
-}
+import type { Post } from "@/types";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
@@ -29,6 +21,7 @@ export default function SchedulePage() {
   const selectedAccount = useSelectedAccount();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -44,8 +37,15 @@ export default function SchedulePage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this post?")) return;
-    await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== id));
+      }
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleRetry(id: string) {
@@ -83,6 +83,7 @@ export default function SchedulePage() {
         <div className="space-y-3">
           {posts.map((post) => {
             const cfg = statusConfig[post.status] ?? statusConfig.DRAFT;
+            const isDeleting = deletingId === post.id;
             return (
               <div key={post.id} className="rounded-lg border bg-white p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -127,10 +128,15 @@ export default function SchedulePage() {
                     {post.status !== "PUBLISHING" && (
                       <button
                         onClick={() => handleDelete(post.id)}
-                        className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        disabled={isDeleting}
+                        className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                         title="Delete post"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </button>
                     )}
                   </div>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
+import type { Account } from "@/types";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -22,12 +23,6 @@ const navItems = [
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
 ];
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-}
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -73,7 +68,7 @@ export default function Sidebar() {
       </div>
 
       {/* Account switcher dropdown */}
-      <div className="px-3 mb-4" ref={dropdownRef}>
+      <div className="px-3 mb-4 relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className="flex w-full items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
@@ -89,7 +84,7 @@ export default function Sidebar() {
           <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-400 transition-transform", dropdownOpen && "rotate-180")} />
         </button>
         {dropdownOpen && (
-          <div className="mt-1 rounded-md border bg-white shadow-lg py-1 z-10 relative">
+          <div className="absolute left-3 right-3 mt-1 rounded-md border bg-white shadow-lg py-1 z-50">
             <button
               onClick={() => { setSelectedAccount(null); setDropdownOpen(false); }}
               className={cn(

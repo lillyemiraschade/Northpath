@@ -2,16 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users, ExternalLink, Trash2, Link2 } from "lucide-react";
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-  profileUrl: string | null;
-  postCount: number;
-  createdAt: string;
-}
+import { Users, ExternalLink, Trash2, Link2, Loader2 } from "lucide-react";
+import type { AccountWithDetails } from "@/types";
 
 export default function AccountsPageWrapper() {
   return (
@@ -24,7 +16,7 @@ export default function AccountsPageWrapper() {
 function AccountsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<AccountWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -43,9 +35,14 @@ function AccountsPage() {
   async function handleDisconnect(id: string) {
     if (!confirm("Disconnect this LinkedIn account? All associated posts will be deleted.")) return;
     setDeleting(id);
-    await fetch(`/api/accounts/${id}`, { method: "DELETE" });
-    setAccounts((prev) => prev.filter((a) => a.id !== id));
-    setDeleting(null);
+    try {
+      const res = await fetch(`/api/accounts/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setAccounts((prev) => prev.filter((a) => a.id !== id));
+      }
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
@@ -121,7 +118,11 @@ function AccountsPage() {
                     className="rounded p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                     title="Disconnect account"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {deleting === account.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>

@@ -1,16 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Clock, Save, CheckCircle, AlertCircle } from "lucide-react";
+import { Send, Clock, Save, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useSelectedAccount } from "@/hooks/use-selected-account";
-
-interface Account {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-}
+import type { Account } from "@/types";
 
 type Status = "idle" | "saving" | "success" | "error";
+type ActionType = "publish" | "schedule" | "draft" | null;
 
 export default function ComposePage() {
   const globalAccount = useSelectedAccount();
@@ -21,6 +17,7 @@ export default function ComposePage() {
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  const [activeAction, setActiveAction] = useState<ActionType>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -53,6 +50,7 @@ export default function ComposePage() {
     }
 
     setStatus("saving");
+    setActiveAction(action);
     setMessage("");
 
     const body: Record<string, unknown> = {
@@ -64,11 +62,12 @@ export default function ComposePage() {
     if (action === "schedule") {
       if (!scheduledAt) {
         setStatus("error");
+        setActiveAction(null);
         setMessage("Please select a date and time");
         return;
       }
       body.scheduledAt = new Date(scheduledAt).toISOString();
-    } else if (action === "draft") {
+    } else if (action === "draft" || action === "publish") {
       body.status = "DRAFT";
     }
 
@@ -85,10 +84,15 @@ export default function ComposePage() {
 
       if (action === "publish") {
         const pubRes = await fetch(`/api/posts/${post.id}/publish`, { method: "POST" });
-        if (!pubRes.ok) throw new Error("Failed to publish");
+        if (!pubRes.ok) {
+          // Publish failed — clean up the orphaned draft
+          await fetch(`/api/posts/${post.id}`, { method: "DELETE" }).catch(() => {});
+          throw new Error("Failed to publish");
+        }
       }
 
       setStatus("success");
+      setActiveAction(null);
       setMessage(
         action === "publish"
           ? "Post published successfully!"
@@ -107,6 +111,7 @@ export default function ComposePage() {
       }, 2000);
     } catch {
       setStatus("error");
+      setActiveAction(null);
       setMessage("Something went wrong. Please try again.");
     }
   }
@@ -114,6 +119,7 @@ export default function ComposePage() {
   const charCount = content.length;
   const charWarning = charCount > 2700;
   const charError = charCount > 3000;
+  const isSaving = status === "saving";
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -214,19 +220,27 @@ export default function ComposePage() {
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => handleAction("publish")}
-            disabled={status === "saving" || charError}
+            disabled={isSaving || charError}
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
           >
-            <Send className="h-4 w-4" />
+            {activeAction === "publish" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
             Publish Now
           </button>
           {showSchedule ? (
             <button
               onClick={() => handleAction("schedule")}
-              disabled={status === "saving" || charError}
+              disabled={isSaving || charError}
               className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
             >
-              <Clock className="h-4 w-4" />
+              {activeAction === "schedule" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Clock className="h-4 w-4" />
+              )}
               Schedule Post
             </button>
           ) : (
@@ -240,10 +254,14 @@ export default function ComposePage() {
           )}
           <button
             onClick={() => handleAction("draft")}
-            disabled={status === "saving" || charError}
+            disabled={isSaving || charError}
             className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
-            <Save className="h-4 w-4" />
+            {activeAction === "draft" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Save Draft
           </button>
         </div>
